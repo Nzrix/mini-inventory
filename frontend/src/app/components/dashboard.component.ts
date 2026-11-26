@@ -50,7 +50,7 @@ import { DashboardData } from '../models/report.model';
             <mat-icon>payments</mat-icon>
             <div>
               <div class="label">มูลค่าสต็อก</div>
-              <div class="value">฿{{ dashboardData.totalStockValue | number:'1.2-2' }}</div>
+              <div class="value money">฿{{ dashboardData.totalStockValue | number:'1.2-2' }}</div>
             </div>
           </mat-card>
           <mat-card class="stat-card">

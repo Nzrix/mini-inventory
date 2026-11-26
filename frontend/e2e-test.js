@@ -14,13 +14,37 @@ function record(name, status, detail = '') {
   console.log(`${status === 'PASS' ? '✅' : '❌'} ${name}${detail ? ' — ' + detail : ''}`);
 }
 
+async function waitFonts(page) {
+  await page.evaluate(async () => {
+    if (document.fonts?.ready) await document.fonts.ready;
+  });
+  await page.waitForTimeout(150);
+}
+
+async function dismissSnackbar(page) {
+  const snack = page.locator('.mat-mdc-snack-bar-container, simple-snack-bar');
+  if (await snack.count()) {
+    const action = page.locator('.mat-mdc-snack-bar-action, simple-snack-bar button').first();
+    if (await action.count()) {
+      await action.click({ timeout: 2000 }).catch(() => {});
+    }
+    await snack.first().waitFor({ state: 'hidden', timeout: 5000 }).catch(async () => {
+      await page.waitForTimeout(3500);
+    });
+  }
+  await page.waitForTimeout(200);
+}
+
 async function login(page, username, password) {
   await page.goto('http://localhost:4200/login');
   await page.waitForSelector('#username', { timeout: 20000 });
+  await waitFonts(page);
   await page.fill('#username', username);
   await page.fill('#password', password);
   await page.click('button[type="submit"]');
   await page.waitForSelector('.shell, .page-title', { timeout: 20000 });
+  await dismissSnackbar(page);
+  await waitFonts(page);
 }
 
 async function run() {
@@ -31,18 +55,24 @@ async function run() {
   try {
     await page.goto('http://localhost:4200/login');
     await page.waitForSelector('#username');
+    await waitFonts(page);
     await page.screenshot({ path: path.join(screenshotsDir, '01-login.png'), fullPage: true });
     record('Login page', 'PASS');
 
     await login(page, 'admin', 'password123');
     await page.waitForSelector('.stats-grid, .stat-card');
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(600);
+    await dismissSnackbar(page);
+    await waitFonts(page);
     await page.screenshot({ path: path.join(screenshotsDir, '02-dashboard.png'), fullPage: true });
     record('Dashboard + charts', 'PASS');
 
     await page.click('a[href="/products"]');
     await page.waitForSelector('.products-page');
-    await page.waitForTimeout(800);
+    await page.waitForSelector('.money');
+    await page.waitForTimeout(600);
+    await dismissSnackbar(page);
+    await waitFonts(page);
     await page.screenshot({ path: path.join(screenshotsDir, '03-products-list.png'), fullPage: true });
     record('Products list', 'PASS');
 
@@ -66,10 +96,10 @@ async function run() {
     await page.click('a[href="/reports"]');
     await page.waitForSelector('.page-title');
     await page.waitForTimeout(1000);
+    await dismissSnackbar(page);
     await page.screenshot({ path: path.join(screenshotsDir, '06-reports.png'), fullPage: true });
     record('Reports', 'PASS');
 
-    // Ensure low stock via API then refresh low stock tab
     const token = await page.evaluate(() => localStorage.getItem('token'));
     await page.request.post('http://localhost:8080/api/stock-transactions', {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -77,6 +107,7 @@ async function run() {
     }).catch(() => {});
     await page.reload();
     await page.waitForSelector('.page-title');
+    await dismissSnackbar(page);
     await page.getByRole('tab', { name: 'Low Stock' }).click();
     await page.waitForTimeout(800);
     await page.screenshot({ path: path.join(screenshotsDir, '07-low-stock.png'), fullPage: true });
@@ -86,6 +117,7 @@ async function run() {
     await page.waitForSelector('#username');
     await login(page, 'staff', 'password123');
     await page.waitForSelector('.shell');
+    await dismissSnackbar(page);
     const cat = await page.locator('a[href="/categories"]').count();
     record('Staff role restriction', cat === 0 ? 'PASS' : 'FAIL', cat === 0 ? 'Categories hidden' : 'Categories visible');
     await page.screenshot({ path: path.join(screenshotsDir, '08-staff-dashboard.png'), fullPage: true });

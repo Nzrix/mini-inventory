@@ -1,5 +1,19 @@
 @use './theme.scss';
 
+/* Local fonts (Google Fonts CDN often blocked in CI/headless) — Thai subset includes ฿ */
+@import '@fontsource/sarabun/thai-400.css';
+@import '@fontsource/sarabun/thai-500.css';
+@import '@fontsource/sarabun/thai-600.css';
+@import '@fontsource/sarabun/thai-700.css';
+@import '@fontsource/sarabun/latin-400.css';
+@import '@fontsource/sarabun/latin-500.css';
+@import '@fontsource/sarabun/latin-600.css';
+@import '@fontsource/sarabun/latin-700.css';
+@import '@fontsource/noto-sans-thai/thai-400.css';
+@import '@fontsource/noto-sans-thai/thai-500.css';
+@import '@fontsource/noto-sans-thai/thai-600.css';
+@import '@fontsource/noto-sans-thai/thai-700.css';
+
 *,
 *::before,
 *::after {
@@ -12,11 +26,46 @@ html, body {
 }
 
 body {
-  font-family: 'Sarabun', 'Noto Sans Thai', 'Helvetica Neue', sans-serif;
+  font-family: 'Sarabun', 'Noto Sans Thai', 'Noto Sans', Tahoma, sans-serif;
   color: var(--inv-ink);
   background: var(--inv-surface);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Thai Baht ฿ (U+0E3F) — force Thai-capable faces so it does not fall back to plain "B" */
+.money {
+  font-family: 'Noto Sans Thai', 'Sarabun', Tahoma, sans-serif !important;
+  font-weight: 700;
+  font-size: 0.95rem;
+  font-feature-settings: 'locl' 1;
+  white-space: nowrap;
+}
+.mat-mdc-cell {
+  font-family: 'Sarabun', 'Noto Sans Thai', Tahoma, sans-serif;
+}
+
+/* Global sidenav contrast (beats Material list defaults) */
+.sidenav .mat-mdc-list-item,
+.sidenav .mat-mdc-list-item .mdc-list-item__primary-text,
+.sidenav .mat-mdc-list-item .mat-icon,
+.sidenav .mat-mdc-list-item mat-icon,
+.sidenav .mdc-list-item__start {
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+.sidenav .mat-mdc-list-item .mdc-list-item__primary-text {
+  opacity: 1 !important;
+}
+.sidenav .mat-mdc-list-item.active,
+.sidenav .mat-mdc-list-item.active .mdc-list-item__primary-text,
+.sidenav .mat-mdc-list-item.active .mat-icon,
+.sidenav .mat-mdc-list-item.active mat-icon,
+.sidenav .mat-mdc-list-item.active .mdc-list-item__start {
+  color: #ffffff !important;
+}
+.sidenav .mat-mdc-list-item.active {
+  background: rgba(94, 234, 212, 0.22) !important;
+  border-radius: 0 24px 24px 0;
 }
 
 a {

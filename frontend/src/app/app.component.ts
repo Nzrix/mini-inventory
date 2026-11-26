@@ -87,7 +87,7 @@ import { User } from './models/user.model';
     .sidenav {
       width: 260px;
       background: var(--inv-sidebar);
-      color: var(--inv-sidebar-text);
+      color: rgba(255, 255, 255, 0.85);
       border: none;
     }
     .brand {
@@ -96,15 +96,27 @@ import { User } from './models/user.model';
       align-items: center;
       padding: 1.25rem 1rem 1rem;
       border-bottom: 1px solid rgba(255,255,255,0.08);
+      color: #fff;
     }
     .brand mat-icon { color: #5eead4; }
-    .brand-title { font-weight: 600; font-size: 1.05rem; }
-    .brand-sub { font-size: 0.8rem; color: #94a3b8; }
-    .sidenav a.active {
-      background: rgba(94, 234, 212, 0.12);
-      color: #5eead4;
+    .brand-title { font-weight: 600; font-size: 1.05rem; color: #fff; }
+    .brand-sub { font-size: 0.8rem; color: rgba(255, 255, 255, 0.65); }
+    .sidenav a.mat-mdc-list-item,
+    .sidenav a.mat-mdc-list-item .mdc-list-item__primary-text,
+    .sidenav a.mat-mdc-list-item mat-icon {
+      color: rgba(255, 255, 255, 0.85) !important;
     }
-    .sidenav a { color: var(--inv-sidebar-text); }
+    .sidenav a.mat-mdc-list-item:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+    .sidenav a.mat-mdc-list-item.active {
+      background: rgba(94, 234, 212, 0.18) !important;
+    }
+    .sidenav a.mat-mdc-list-item.active,
+    .sidenav a.mat-mdc-list-item.active .mdc-list-item__primary-text,
+    .sidenav a.mat-mdc-list-item.active mat-icon {
+      color: #ffffff !important;
+    }
     .topbar {
       background: var(--inv-card);
       color: var(--inv-ink);

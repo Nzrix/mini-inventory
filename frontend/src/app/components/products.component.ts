@@ -92,11 +92,11 @@ import { Category } from '../models/category.model';
           </ng-container>
           <ng-container matColumnDef="costPrice">
             <th mat-header-cell *matHeaderCellDef>Cost</th>
-            <td mat-cell *matCellDef="let row">฿{{ row.costPrice | number:'1.0-2' }}</td>
+            <td mat-cell *matCellDef="let row"><span class="money">฿{{ row.costPrice | number:'1.0-2' }}</span></td>
           </ng-container>
           <ng-container matColumnDef="sellingPrice">
             <th mat-header-cell *matHeaderCellDef>Price</th>
-            <td mat-cell *matCellDef="let row">฿{{ row.sellingPrice | number:'1.0-2' }}</td>
+            <td mat-cell *matCellDef="let row"><span class="money">฿{{ row.sellingPrice | number:'1.0-2' }}</span></td>
           </ng-container>
           <ng-container matColumnDef="actions">
             <th mat-header-cell *matHeaderCellDef></th>

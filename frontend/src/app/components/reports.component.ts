@@ -59,7 +59,7 @@ import { Product } from '../models/product.model';
               <ng-container matColumnDef="productName"><th mat-header-cell *matHeaderCellDef>Product</th><td mat-cell *matCellDef="let r">{{ r.productName }}</td></ng-container>
               <ng-container matColumnDef="categoryName"><th mat-header-cell *matHeaderCellDef>Category</th><td mat-cell *matCellDef="let r">{{ r.categoryName }}</td></ng-container>
               <ng-container matColumnDef="currentStock"><th mat-header-cell *matHeaderCellDef>Stock</th><td mat-cell *matCellDef="let r">{{ r.currentStock }}</td></ng-container>
-              <ng-container matColumnDef="stockValue"><th mat-header-cell *matHeaderCellDef>Value</th><td mat-cell *matCellDef="let r">฿{{ r.stockValue | number:'1.2-2' }}</td></ng-container>
+              <ng-container matColumnDef="stockValue"><th mat-header-cell *matHeaderCellDef>Value</th><td mat-cell *matCellDef="let r"><span class="money">฿{{ r.stockValue | number:'1.2-2' }}</span></td></ng-container>
               <ng-container matColumnDef="status">
                 <th mat-header-cell *matHeaderCellDef>Status</th>
                 <td mat-cell *matCellDef="let r">
