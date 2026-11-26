@@ -1,0 +1,40 @@
+@use '@angular/material' as mat;
+
+// Shop inventory palette: teal primary, amber accent, coral warn (avoids default purple)
+$inv-primary: mat.define-palette(mat.$teal-palette, 700, 500, 900);
+$inv-accent: mat.define-palette(mat.$amber-palette, 600, 400, 800);
+$inv-warn: mat.define-palette(mat.$deep-orange-palette, 600);
+
+$inv-typography: mat.define-typography-config(
+  $font-family: '"Sarabun", "Noto Sans Thai", "Noto Sans", Tahoma, sans-serif'
+);
+
+$inv-theme: mat.define-light-theme((
+  color: (
+    primary: $inv-primary,
+    accent: $inv-accent,
+    warn: $inv-warn,
+  ),
+  typography: $inv-typography,
+  density: 0,
+));
+
+@include mat.core();
+@include mat.all-component-themes($inv-theme);
+
+:root {
+  --inv-primary: #0f766e;
+  --inv-primary-soft: #ccfbf1;
+  --inv-accent: #d97706;
+  --inv-warn: #ea580c;
+  --inv-surface: #f1f5f9;
+  --inv-card: #ffffff;
+  --inv-ink: #0f172a;
+  --inv-muted: #64748b;
+  --inv-border: #e2e8f0;
+  --inv-success: #059669;
+  --inv-sidebar: #0f172a;
+  --inv-sidebar-text: #e2e8f0;
+  --inv-radius: 12px;
+  --inv-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.04);
+}
