@@ -3,119 +3,159 @@ const fs = require('fs');
 const path = require('path');
 
 const screenshotsDir = path.join(__dirname, '..', 'docs', 'screenshots');
-if (!fs.existsSync(screenshotsDir)) {
-  fs.mkdirSync(screenshotsDir, { recursive: true });
+fs.mkdirSync(screenshotsDir, { recursive: true });
+
+const results = [];
+
+function record(name, status, detail = '') {
+  results.push({ name, status, detail });
+  const icon = status === 'PASS' ? '✅' : status === 'FAIL' ? '❌' : '⏭️';
+  console.log(`${icon} ${name}${detail ? ' — ' + detail : ''}`);
 }
 
-async function runTests() {
-  const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({
-    viewport: { width: 1280, height: 720 }
-  });
-  const page = await context.newPage();
+async function login(page, username, password) {
+  await page.goto('http://localhost:4200/login');
+  await page.waitForSelector('#username', { timeout: 15000 });
+  await page.fill('#username', username);
+  await page.fill('#password', password);
+  await page.click('button[type="submit"]');
+  await page.waitForSelector('.dashboard, .navbar', { timeout: 15000 });
+}
 
-  const results = [];
+async function run() {
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({ viewport: { width: 1400, height: 900 } });
+  const page = await context.newPage();
+  page.setDefaultTimeout(15000);
 
   try {
-    // Test 1: Login Page
-    console.log('✓ Testing login page...');
-    await page.goto('http://localhost:4200');
-    await page.waitForSelector('input[type="text"]', { timeout: 10000 });
-    await page.screenshot({ path: path.join(screenshotsDir, '01-login-page.png'), fullPage: true });
-    results.push({ test: 'Login Page Load', status: 'PASS' });
+    // Login page
+    await page.goto('http://localhost:4200/login');
+    await page.waitForSelector('#username');
+    await page.screenshot({ path: path.join(screenshotsDir, '01-login.png'), fullPage: true });
+    record('Login page', 'PASS');
 
-    // Test 2: Admin Login
-    console.log('✓ Testing admin login...');
-    await page.fill('input[type="text"]', 'admin');
-    await page.fill('input[type="password"]', 'password123');
-    await page.screenshot({ path: path.join(screenshotsDir, '02-admin-credentials.png'), fullPage: true });
-    await page.click('button[type="submit"]');
-    await page.waitForURL('**/dashboard', { timeout: 10000 });
-    await page.screenshot({ path: path.join(screenshotsDir, '03-dashboard-admin.png'), fullPage: true });
-    results.push({ test: 'Admin Login', status: 'PASS' });
+    // Admin login -> dashboard
+    await login(page, 'admin', 'password123');
+    await page.waitForSelector('.stat-card');
+    await page.screenshot({ path: path.join(screenshotsDir, '02-dashboard.png'), fullPage: true });
+    record('Admin login + dashboard', 'PASS');
 
-    // Test 3: Dashboard
-    console.log('✓ Testing dashboard...');
-    await page.waitForSelector('.dashboard', { timeout: 5000 }).catch(() => {});
-    results.push({ test: 'Dashboard Load', status: 'PASS' });
-
-    // Test 4: Products List
-    console.log('✓ Testing products list...');
+    // Products list
     await page.click('a[href="/products"]');
-    await page.waitForTimeout(1000);
-    await page.screenshot({ path: path.join(screenshotsDir, '04-products-list.png'), fullPage: true });
-    results.push({ test: 'Products List', status: 'PASS' });
+    await page.waitForSelector('.data-table, .products-page');
+    await page.waitForTimeout(800);
+    await page.screenshot({ path: path.join(screenshotsDir, '03-products-list.png'), fullPage: true });
+    record('Products list', 'PASS');
 
-    // Test 5: Create Product
-    console.log('✓ Testing product creation...');
-    const createBtn = await page.$('button:has-text("Add Product"), button:has-text("New Product"), a:has-text("Add Product")');
-    if (createBtn) {
-      await createBtn.click();
-      await page.waitForTimeout(500);
-      await page.screenshot({ path: path.join(screenshotsDir, '05-product-form.png'), fullPage: true });
-      results.push({ test: 'Product Form', status: 'PASS' });
-    } else {
-      results.push({ test: 'Product Form', status: 'SKIP' });
-    }
+    // Product form
+    const addProduct = page.locator('button:has-text("Add Product")');
+    await addProduct.click();
+    await page.waitForSelector('.modal-content');
+    await page.screenshot({ path: path.join(screenshotsDir, '04-product-form.png'), fullPage: true });
+    await page.click('button:has-text("Cancel")');
+    record('Product form', 'PASS');
 
-    // Test 6: Categories
-    console.log('✓ Testing categories...');
-    await page.click('a[href="/categories"]');
-    await page.waitForTimeout(1000);
-    await page.screenshot({ path: path.join(screenshotsDir, '06-categories.png'), fullPage: true });
-    results.push({ test: 'Categories', status: 'PASS' });
-
-    // Test 7: Stock Transactions
-    console.log('✓ Testing stock transactions...');
+    // Stock transactions + form
     await page.click('a[href="/stock-transactions"]');
-    await page.waitForTimeout(1000);
-    await page.screenshot({ path: path.join(screenshotsDir, '07-stock-transactions.png'), fullPage: true });
-    results.push({ test: 'Stock Transactions', status: 'PASS' });
+    await page.waitForSelector('.page');
+    await page.waitForTimeout(800);
+    await page.click('button:has-text("New Transaction")');
+    await page.waitForSelector('.modal-content');
+    await page.screenshot({ path: path.join(screenshotsDir, '05-stock-transaction-form.png'), fullPage: true });
 
-    // Test 8: Reports
-    console.log('✓ Testing reports...');
+    // Create a stock OUT that causes low stock for screenshot later
+    const productSelect = page.locator('select[name="productId"]');
+    await productSelect.selectOption({ index: 1 });
+    await page.selectOption('select[name="type"]', 'OUT');
+    // Leave form open screenshot already taken; cancel and do API-driven low stock via UI carefully
+    await page.fill('input[name="quantity"]', '1');
+    await page.fill('textarea[name="reason"]', 'UI verification OUT');
+    await page.click('.modal-content button:has-text("Save")');
+    await page.waitForTimeout(1000);
+    record('Stock transaction form + OUT', 'PASS');
+
+    // Reports (stock)
     await page.click('a[href="/reports"]');
-    await page.waitForTimeout(1000);
-    await page.screenshot({ path: path.join(screenshotsDir, '08-reports.png'), fullPage: true });
-    results.push({ test: 'Reports', status: 'PASS' });
+    await page.waitForSelector('.page');
+    await page.waitForTimeout(800);
+    await page.screenshot({ path: path.join(screenshotsDir, '06-reports.png'), fullPage: true });
+    record('Reports page', 'PASS');
 
-    // Test 9: Logout and Staff Login
-    console.log('✓ Testing logout...');
-    const logoutBtn = await page.$('button:has-text("Logout"), a:has-text("Logout")');
-    if (logoutBtn) {
-      await logoutBtn.click();
-      await page.waitForTimeout(500);
-    } else {
-      await page.goto('http://localhost:4200');
+    // Low stock tab — force low stock via adjustment if needed
+    await page.click('button:has-text("Low Stock")');
+    await page.waitForTimeout(500);
+
+    // If empty, create low stock via stock page ADJUSTMENT then return
+    const lowRows = await page.locator('.tab-content tbody tr').count();
+    if (lowRows === 0) {
+      await page.click('a[href="/stock-transactions"]');
+      await page.waitForSelector('button:has-text("New Transaction")');
+      await page.click('button:has-text("New Transaction")');
+      await page.selectOption('select[name="productId"]', { index: 1 });
+      await page.selectOption('select[name="type"]', 'ADJUSTMENT');
+      await page.fill('input[name="quantity"]', '-9999');
+      await page.fill('textarea[name="reason"]', 'Force low stock for screenshot');
+      await page.click('.modal-content button:has-text("Save")');
+      await page.waitForTimeout(800);
+      // If rejected as negative, use a large OUT instead after checking current
+      const err = await page.locator('.error').textContent().catch(() => '');
+      if (err) {
+        await page.selectOption('select[name="type"]', 'OUT');
+        await page.fill('input[name="quantity"]', '45');
+        await page.fill('textarea[name="reason"]', 'Reduce stock for low-stock demo');
+        await page.click('.modal-content button:has-text("Save")');
+        await page.waitForTimeout(800);
+      }
+      await page.click('a[href="/reports"]');
+      await page.waitForSelector('button:has-text("Low Stock")');
+      await page.click('button:has-text("Low Stock")');
+      await page.waitForTimeout(800);
     }
-    
-    console.log('✓ Testing staff login...');
-    await page.fill('input[type="text"]', 'staff');
-    await page.fill('input[type="password"]', 'password123');
-    await page.screenshot({ path: path.join(screenshotsDir, '09-staff-credentials.png'), fullPage: true });
-    await page.click('button[type="submit"]');
-    await page.waitForURL('**/dashboard', { timeout: 10000 });
-    await page.screenshot({ path: path.join(screenshotsDir, '10-dashboard-staff.png'), fullPage: true });
-    results.push({ test: 'Staff Login', status: 'PASS' });
 
-    // Test 10: Staff restricted access
-    console.log('✓ Testing staff restrictions...');
-    await page.click('a[href="/categories"]');
-    await page.waitForTimeout(1000);
-    await page.screenshot({ path: path.join(screenshotsDir, '11-staff-restricted.png'), fullPage: true });
-    results.push({ test: 'Staff Restrictions', status: 'PASS' });
+    await page.screenshot({ path: path.join(screenshotsDir, '07-low-stock.png'), fullPage: true });
+    record('Low stock alert', 'PASS');
 
-  } catch (error) {
-    console.error('Test failed:', error.message);
-    results.push({ test: error.message, status: 'FAIL' });
-    await page.screenshot({ path: path.join(screenshotsDir, 'error.png'), fullPage: true });
+    // Role restriction: logout and staff login — Categories link hidden
+    await page.click('button:has-text("Logout")');
+    await page.waitForSelector('#username');
+    await login(page, 'staff', 'password123');
+    await page.waitForSelector('.navbar');
+    const categoriesVisible = await page.locator('a[href="/categories"]').count();
+    if (categoriesVisible === 0) {
+      record('Staff role restriction (Categories hidden)', 'PASS');
+    } else {
+      record('Staff role restriction (Categories hidden)', 'FAIL', 'Categories link visible to staff');
+    }
+    await page.screenshot({ path: path.join(screenshotsDir, '08-staff-dashboard.png'), fullPage: true });
+
+    // Staff can open products
+    await page.click('a[href="/products"]');
+    await page.waitForSelector('.products-page, .data-table');
+    await page.waitForTimeout(500);
+    record('Staff products page', 'PASS');
+
+  } catch (err) {
+    record('UI walkthrough', 'FAIL', err.message);
+    await page.screenshot({ path: path.join(screenshotsDir, 'ui-error.png'), fullPage: true }).catch(() => {});
+  } finally {
+    await browser.close();
   }
 
-  await browser.close();
+  // Cleanup unwanted screenshots
+  for (const name of ['02-admin-credentials.png', 'error.png', '01-login-page.png', 'ui-error.png']) {
+    const p = path.join(screenshotsDir, name);
+    if (fs.existsSync(p) && name !== 'ui-error.png') fs.unlinkSync(p);
+  }
+  // Keep ui-error only if present and walkthrough failed
+  const failed = results.some(r => r.status === 'FAIL');
+  const uiError = path.join(screenshotsDir, 'ui-error.png');
+  if (!failed && fs.existsSync(uiError)) fs.unlinkSync(uiError);
 
-  console.log('\n=== TEST RESULTS ===');
-  results.forEach(r => console.log(`${r.status === 'PASS' ? '✅' : r.status === 'SKIP' ? '⏭️' : '❌'} ${r.test}: ${r.status}`));
-  console.log(`\nTotal: ${results.length} | Pass: ${results.filter(r => r.status === 'PASS').length} | Fail: ${results.filter(r => r.status === 'FAIL').length}`);
+  console.log('\n=== UI RESULTS ===');
+  results.forEach(r => console.log(`${r.status}\t${r.name}${r.detail ? ' — ' + r.detail : ''}`));
+  console.log('\nScreenshots:', fs.readdirSync(screenshotsDir).join(', '));
+  process.exit(results.some(r => r.status === 'FAIL') ? 1 : 0);
 }
 
-runTests().catch(console.error);
+run();

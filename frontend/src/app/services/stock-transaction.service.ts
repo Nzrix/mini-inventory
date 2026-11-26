@@ -16,6 +16,14 @@ export class StockTransactionService {
     return this.http.post<StockTransaction>(this.apiUrl, transaction);
   }
 
+  getAllTransactions(page = 0, size = 50): Observable<StockTransactionPage> {
+    const params = new HttpParams()
+      .set('page', page.toString())
+      .set('size', size.toString());
+
+    return this.http.get<StockTransactionPage>(this.apiUrl, { params });
+  }
+
   getTransactionsByProduct(productId: number, page = 0, size = 10): Observable<StockTransactionPage> {
     const params = new HttpParams()
       .set('page', page.toString())

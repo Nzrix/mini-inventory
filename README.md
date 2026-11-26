@@ -244,17 +244,19 @@ npm test
 
 ### Screenshots
 
-![Login Page](docs/screenshots/01-login-page.png)
-*Login page with demo account support*
+![Login](docs/screenshots/01-login.png)
 
-![Admin Credentials](docs/screenshots/02-admin-credentials.png)
-*Admin user authentication*
+![Dashboard](docs/screenshots/02-dashboard.png)
 
-For complete runtime verification results with all feature tests, see [RUNTIME_VERIFICATION.md](RUNTIME_VERIFICATION.md).
-- Dashboard view
-- Product management
-- Stock transactions
-- Reports and analytics
+![Products](docs/screenshots/03-products-list.png)
+
+![Product form](docs/screenshots/04-product-form.png)
+
+![Stock transaction](docs/screenshots/05-stock-transaction-form.png)
+
+![Reports](docs/screenshots/06-reports.png)
+
+![Low stock](docs/screenshots/07-low-stock.png)
 
 ### Future Improvements
 
@@ -373,11 +375,19 @@ docker-compose up -d
 
 ### ภาพหน้าจอ
 
-ภาพหน้าจอมีอยู่ในโฟลเดอร์ [docs/](./docs/):
-- หน้าแดชบอร์ด
-- จัดการสินค้า
-- บันทึกสต็อก
-- รายงานและวิเคราะห์
+![เข้าสู่ระบบ](docs/screenshots/01-login.png)
+
+![แดชบอร์ด](docs/screenshots/02-dashboard.png)
+
+![รายการสินค้า](docs/screenshots/03-products-list.png)
+
+![ฟอร์มสินค้า](docs/screenshots/04-product-form.png)
+
+![ฟอร์มสต็อก](docs/screenshots/05-stock-transaction-form.png)
+
+![รายงาน](docs/screenshots/06-reports.png)
+
+![สินค้าใกล้หมด](docs/screenshots/07-low-stock.png)
 
 ### แนวทางพัฒนาต่อ
 

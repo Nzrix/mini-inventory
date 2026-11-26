@@ -135,7 +135,11 @@ export class StockTransactionsComponent implements OnInit {
 
   loadTransactions(): void {
     if (this.filterProductId) {
-      this.stockService.getTransactionsByProduct(this.filterProductId, 0, 50).subscribe(page => this.transactions = page.content);
+      this.stockService.getTransactionsByProduct(this.filterProductId, 0, 50)
+        .subscribe(page => this.transactions = page.content);
+    } else {
+      this.stockService.getAllTransactions(0, 50)
+        .subscribe(page => this.transactions = page.content);
     }
   }
 

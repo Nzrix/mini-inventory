@@ -22,6 +22,14 @@ public class StockTransactionController {
     public ResponseEntity<StockTransactionDTO> createTransaction(@Valid @RequestBody StockTransactionDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(transactionService.createTransaction(dto));
     }
+
+    @GetMapping
+    public ResponseEntity<Page<StockTransactionDTO>> getAllTransactions(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(transactionService.getAllTransactions(pageable));
+    }
     
     @GetMapping("/product/{productId}")
     public ResponseEntity<Page<StockTransactionDTO>> getTransactionsByProduct(

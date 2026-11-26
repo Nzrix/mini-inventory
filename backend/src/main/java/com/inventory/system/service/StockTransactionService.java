@@ -87,6 +87,10 @@ public class StockTransactionService {
         return transactionRepository.findByProductIdWithDetails(productId, pageable)
                 .map(this::toDTO);
     }
+
+    public Page<StockTransactionDTO> getAllTransactions(Pageable pageable) {
+        return transactionRepository.findAllWithDetails(pageable).map(this::toDTO);
+    }
     
     public Integer getCurrentStock(Long productId) {
         if (!productRepository.existsById(productId)) {

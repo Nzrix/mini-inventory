@@ -14,13 +14,26 @@ import java.util.List;
 @Repository
 public interface StockTransactionRepository extends JpaRepository<StockTransaction, Long> {
     
-    @Query("SELECT st FROM StockTransaction st " +
-           "JOIN FETCH st.product p " +
-           "JOIN FETCH p.category " +
-           "JOIN FETCH st.user " +
-           "WHERE st.product.id = :productId " +
-           "ORDER BY st.createdAt DESC")
+    @Query(
+        value = "SELECT st FROM StockTransaction st " +
+                "JOIN FETCH st.product p " +
+                "JOIN FETCH p.category " +
+                "JOIN FETCH st.user " +
+                "WHERE st.product.id = :productId " +
+                "ORDER BY st.createdAt DESC",
+        countQuery = "SELECT COUNT(st) FROM StockTransaction st WHERE st.product.id = :productId"
+    )
     Page<StockTransaction> findByProductIdWithDetails(@Param("productId") Long productId, Pageable pageable);
+
+    @Query(
+        value = "SELECT st FROM StockTransaction st " +
+                "JOIN FETCH st.product p " +
+                "JOIN FETCH p.category " +
+                "JOIN FETCH st.user " +
+                "ORDER BY st.createdAt DESC",
+        countQuery = "SELECT COUNT(st) FROM StockTransaction st"
+    )
+    Page<StockTransaction> findAllWithDetails(Pageable pageable);
     
     @Query("SELECT st FROM StockTransaction st " +
            "JOIN FETCH st.product p " +
