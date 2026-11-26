@@ -64,7 +64,7 @@ public class ReportService {
         return transactions.stream().map(this::toDTO).collect(Collectors.toList());
     }
     
-    public List<ProductDTO> getLowStockProducts() {
+    public List<com.inventory.system.dto.ProductDTO> getLowStockProducts() {
         List<Product> products = productRepository.findAll();
         return products.stream()
                 .filter(product -> {
@@ -155,8 +155,8 @@ public class ReportService {
         return dto;
     }
     
-    private ProductDTO toProductDTO(Product product) {
-        ProductDTO dto = new ProductDTO();
+    private com.inventory.system.dto.ProductDTO toProductDTO(Product product) {
+        com.inventory.system.dto.ProductDTO dto = new com.inventory.system.dto.ProductDTO();
         dto.setId(product.getId());
         dto.setSku(product.getSku());
         dto.setName(product.getName());
@@ -174,6 +174,4 @@ public class ReportService {
         
         return dto;
     }
-    
-    private static class ProductDTO extends com.inventory.system.dto.ProductDTO {}
 }
