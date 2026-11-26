@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -57,10 +58,10 @@ class StockFlowIntegrationTest {
     private PasswordEncoder passwordEncoder;
 
     private Long productId;
-    private String adminToken;
 
     @BeforeEach
-    void setUp() throws Exception {
+    void setUp() {
+        SecurityContextHolder.clearContext();
         stockTransactionRepository.deleteAll();
         productRepository.deleteAll();
         categoryRepository.deleteAll();
@@ -90,12 +91,12 @@ class StockFlowIntegrationTest {
         product.setCategory(category);
         product = productRepository.save(product);
         productId = product.getId();
-
-        adminToken = loginAndGetToken("admin", "password123");
     }
 
     @Test
     void stockInIncreasesBalance() throws Exception {
+        String token = loginAndGetToken("admin", "password123");
+
         StockTransactionDTO dto = new StockTransactionDTO();
         dto.setProductId(productId);
         dto.setType(StockTransaction.TransactionType.IN);
@@ -103,7 +104,7 @@ class StockFlowIntegrationTest {
         dto.setReason("Initial stock");
 
         mockMvc.perform(post("/api/stock-transactions")
-                        .header("Authorization", "Bearer " + adminToken)
+                        .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isCreated())
@@ -113,7 +114,8 @@ class StockFlowIntegrationTest {
 
     @Test
     void stockOutDecreasesBalance() throws Exception {
-        createStock(StockTransaction.TransactionType.IN, 40, "Seed stock");
+        String token = loginAndGetToken("admin", "password123");
+        createStock(token, StockTransaction.TransactionType.IN, 40, "Seed stock");
 
         StockTransactionDTO dto = new StockTransactionDTO();
         dto.setProductId(productId);
@@ -122,7 +124,7 @@ class StockFlowIntegrationTest {
         dto.setReason("Sale");
 
         mockMvc.perform(post("/api/stock-transactions")
-                        .header("Authorization", "Bearer " + adminToken)
+                        .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isCreated())
@@ -132,7 +134,8 @@ class StockFlowIntegrationTest {
 
     @Test
     void negativeStockOutReturns400() throws Exception {
-        createStock(StockTransaction.TransactionType.IN, 5, "Small stock");
+        String token = loginAndGetToken("admin", "password123");
+        createStock(token, StockTransaction.TransactionType.IN, 5, "Small stock");
 
         StockTransactionDTO dto = new StockTransactionDTO();
         dto.setProductId(productId);
@@ -141,13 +144,13 @@ class StockFlowIntegrationTest {
         dto.setReason("Too much");
 
         mockMvc.perform(post("/api/stock-transactions")
-                        .header("Authorization", "Bearer " + adminToken)
+                        .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isBadRequest());
     }
 
-    private void createStock(StockTransaction.TransactionType type, int quantity, String reason) throws Exception {
+    private void createStock(String token, StockTransaction.TransactionType type, int quantity, String reason) throws Exception {
         StockTransactionDTO dto = new StockTransactionDTO();
         dto.setProductId(productId);
         dto.setType(type);
@@ -155,13 +158,14 @@ class StockFlowIntegrationTest {
         dto.setReason(reason);
 
         mockMvc.perform(post("/api/stock-transactions")
-                        .header("Authorization", "Bearer " + adminToken)
+                        .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isCreated());
     }
 
     private String loginAndGetToken(String username, String password) throws Exception {
+        SecurityContextHolder.clearContext();
         LoginRequest request = new LoginRequest();
         request.setUsername(username);
         request.setPassword(password);
@@ -172,6 +176,7 @@ class StockFlowIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
+        SecurityContextHolder.clearContext();
         return objectMapper.readTree(result.getResponse().getContentAsString()).get("token").asText();
     }
 }
