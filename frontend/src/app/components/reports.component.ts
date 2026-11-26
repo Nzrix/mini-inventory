@@ -1,124 +1,167 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatTableDataSource, MatTableModule } from '@angular/material/table';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatCardModule } from '@angular/material/card';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { BaseChartDirective } from 'ng2-charts';
+import { ChartConfiguration } from 'chart.js';
 import { ReportService } from '../services/report.service';
+import { NotifyService } from '../shared/notify.service';
 import { StockReport } from '../models/report.model';
 import { Product } from '../models/product.model';
 
 @Component({
   selector: 'app-reports',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule, MatTabsModule, MatTableModule, MatButtonModule, MatIconModule,
+    MatChipsModule, MatCardModule, MatProgressSpinnerModule, BaseChartDirective
+  ],
   template: `
-    <div class="page">
-      <h1>Reports / รายงาน</h1>
-      
-      <div class="tabs">
-        <button (click)="activeTab = 'stock'" [class.active]="activeTab === 'stock'" class="tab-btn">Stock Report</button>
-        <button (click)="activeTab = 'low'" [class.active]="activeTab === 'low'" class="tab-btn">Low Stock</button>
-      </div>
-      
-      <div *ngIf="activeTab === 'stock'" class="tab-content">
-        <div class="actions">
-          <button (click)="exportStock()" class="btn-primary">📥 Export to Excel</button>
+    <div class="page-shell">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Reports</h1>
+          <p class="page-subtitle">รายงานสต็อกและสินค้าใกล้หมด</p>
         </div>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>SKU</th>
-              <th>Product</th>
-              <th>Category</th>
-              <th>Stock</th>
-              <th>Unit</th>
-              <th>Cost</th>
-              <th>Selling Price</th>
-              <th>Stock Value</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let item of stockReport" [class.low-stock]="item.isLowStock">
-              <td>{{ item.sku }}</td>
-              <td>{{ item.productName }}</td>
-              <td>{{ item.categoryName }}</td>
-              <td>{{ item.currentStock }}</td>
-              <td>{{ item.unit }}</td>
-              <td>฿{{ item.costPrice }}</td>
-              <td>฿{{ item.sellingPrice }}</td>
-              <td>฿{{ item.stockValue | number:'1.2-2' }}</td>
-              <td><span *ngIf="item.isLowStock" class="badge-warning">Low Stock</span></td>
-            </tr>
-          </tbody>
-        </table>
       </div>
-      
-      <div *ngIf="activeTab === 'low'" class="tab-content">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>SKU</th>
-              <th>Product</th>
-              <th>Current Stock</th>
-              <th>Min Stock</th>
-              <th>Difference</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let item of lowStockProducts" class="low-stock">
-              <td>{{ item.sku }}</td>
-              <td>{{ item.name }}</td>
-              <td>{{ item.currentStock }}</td>
-              <td>{{ item.minimumStock }}</td>
-              <td class="warning">-{{ item.minimumStock - item.currentStock! }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+
+      <mat-card class="chart-card" *ngIf="valueChartData.labels?.length">
+        <mat-card-header>
+          <mat-card-title>มูลค่าสต็อกตามหมวดหมู่</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="chart-wrap">
+            <canvas baseChart [data]="valueChartData" [options]="barOptions" [type]="'bar'"></canvas>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-tab-group class="panel tabs" animationDuration="200ms">
+        <mat-tab label="Stock Report">
+          <div class="tab-pad">
+            <button mat-stroked-button color="primary" (click)="exportStock()" [disabled]="loadingStock">
+              <mat-icon>download</mat-icon>
+              Export to Excel
+            </button>
+
+            <div class="loading-state" *ngIf="loadingStock"><mat-spinner diameter="36"></mat-spinner></div>
+            <div class="empty-state" *ngIf="!loadingStock && stockData.data.length === 0">
+              <mat-icon>table_rows</mat-icon><div>ไม่มีข้อมูลรายงาน</div>
+            </div>
+
+            <table mat-table [dataSource]="stockData" class="full-width" *ngIf="!loadingStock && stockData.data.length">
+              <ng-container matColumnDef="sku"><th mat-header-cell *matHeaderCellDef>SKU</th><td mat-cell *matCellDef="let r">{{ r.sku }}</td></ng-container>
+              <ng-container matColumnDef="productName"><th mat-header-cell *matHeaderCellDef>Product</th><td mat-cell *matCellDef="let r">{{ r.productName }}</td></ng-container>
+              <ng-container matColumnDef="categoryName"><th mat-header-cell *matHeaderCellDef>Category</th><td mat-cell *matCellDef="let r">{{ r.categoryName }}</td></ng-container>
+              <ng-container matColumnDef="currentStock"><th mat-header-cell *matHeaderCellDef>Stock</th><td mat-cell *matCellDef="let r">{{ r.currentStock }}</td></ng-container>
+              <ng-container matColumnDef="stockValue"><th mat-header-cell *matHeaderCellDef>Value</th><td mat-cell *matCellDef="let r">฿{{ r.stockValue | number:'1.2-2' }}</td></ng-container>
+              <ng-container matColumnDef="status">
+                <th mat-header-cell *matHeaderCellDef>Status</th>
+                <td mat-cell *matCellDef="let r">
+                  <mat-chip [class]="r.isLowStock ? 'stock-chip-low' : 'stock-chip-ok'">
+                    {{ r.isLowStock ? 'Low Stock' : 'OK' }}
+                  </mat-chip>
+                </td>
+              </ng-container>
+              <tr mat-header-row *matHeaderRowDef="stockColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: stockColumns;" [class.low-stock-row]="row.isLowStock"></tr>
+            </table>
+          </div>
+        </mat-tab>
+
+        <mat-tab label="Low Stock">
+          <div class="tab-pad">
+            <div class="loading-state" *ngIf="loadingLow"><mat-spinner diameter="36"></mat-spinner></div>
+            <div class="empty-state" *ngIf="!loadingLow && lowStockData.data.length === 0">
+              <mat-icon>check_circle</mat-icon><div>ไม่มีสินค้าใกล้หมด</div>
+            </div>
+            <table mat-table [dataSource]="lowStockData" class="full-width" *ngIf="!loadingLow && lowStockData.data.length">
+              <ng-container matColumnDef="sku"><th mat-header-cell *matHeaderCellDef>SKU</th><td mat-cell *matCellDef="let r">{{ r.sku }}</td></ng-container>
+              <ng-container matColumnDef="name"><th mat-header-cell *matHeaderCellDef>Product</th><td mat-cell *matCellDef="let r">{{ r.name }}</td></ng-container>
+              <ng-container matColumnDef="currentStock"><th mat-header-cell *matHeaderCellDef>Current</th><td mat-cell *matCellDef="let r">{{ r.currentStock }}</td></ng-container>
+              <ng-container matColumnDef="minimumStock"><th mat-header-cell *matHeaderCellDef>Min</th><td mat-cell *matCellDef="let r">{{ r.minimumStock }}</td></ng-container>
+              <ng-container matColumnDef="difference">
+                <th mat-header-cell *matHeaderCellDef>Difference</th>
+                <td mat-cell *matCellDef="let r" class="diff">-{{ r.minimumStock - (r.currentStock || 0) }}</td>
+              </ng-container>
+              <tr mat-header-row *matHeaderRowDef="lowColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: lowColumns;" class="low-stock-row"></tr>
+            </table>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
     </div>
   `,
   styles: [`
-    .page { padding: 2rem; }
-    .tabs { display: flex; gap: 0.5rem; margin: 2rem 0; }
-    .tab-btn { padding: 0.75rem 1.5rem; background: white; border: 1px solid #ddd; border-radius: 4px 4px 0 0; cursor: pointer; }
-    .tab-btn.active { background: #667eea; color: white; border-color: #667eea; }
-    .tab-content { background: white; padding: 1.5rem; border-radius: 0 4px 4px 4px; }
-    .actions { margin-bottom: 1rem; }
-    .data-table { width: 100%; border-collapse: collapse; }
-    .data-table th, .data-table td { padding: 1rem; text-align: left; border-bottom: 1px solid #eee; }
-    .data-table th { background: #f8f9fa; font-weight: 600; }
-    .data-table tr.low-stock { background: #fff3cd; }
-    .warning { color: #f59e0b; font-weight: bold; }
-    .badge-warning { background: #f59e0b; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; }
-    .btn-primary { padding: 0.75rem 1.5rem; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .chart-card { margin-bottom: 1rem; }
+    .tabs { overflow: hidden; }
+    .tab-pad { padding: 1rem; display: flex; flex-direction: column; gap: 1rem; }
+    .diff { color: var(--inv-warn); font-weight: 700; }
   `]
 })
 export class ReportsComponent implements OnInit {
-  activeTab = 'stock';
-  stockReport: StockReport[] = [];
-  lowStockProducts: Product[] = [];
+  stockColumns = ['sku', 'productName', 'categoryName', 'currentStock', 'stockValue', 'status'];
+  lowColumns = ['sku', 'name', 'currentStock', 'minimumStock', 'difference'];
+  stockData = new MatTableDataSource<StockReport>([]);
+  lowStockData = new MatTableDataSource<Product>([]);
+  loadingStock = true;
+  loadingLow = true;
 
-  constructor(private reportService: ReportService) {}
+  valueChartData: ChartConfiguration<'bar'>['data'] = { labels: [], datasets: [] };
+  barOptions: ChartConfiguration<'bar'>['options'] = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true } }
+  };
+
+  constructor(private reportService: ReportService, private notify: NotifyService) {}
 
   ngOnInit(): void {
-    this.loadStockReport();
-    this.loadLowStock();
+    this.reportService.getCurrentStockReport().subscribe({
+      next: data => {
+        this.stockData.data = data;
+        this.buildValueChart(data);
+        this.loadingStock = false;
+      },
+      error: () => { this.loadingStock = false; }
+    });
+    this.reportService.getLowStockProducts().subscribe({
+      next: data => { this.lowStockData.data = data; this.loadingLow = false; },
+      error: () => { this.loadingLow = false; }
+    });
   }
 
-  loadStockReport(): void {
-    this.reportService.getCurrentStockReport().subscribe(data => this.stockReport = data);
-  }
-
-  loadLowStock(): void {
-    this.reportService.getLowStockProducts().subscribe(data => this.lowStockProducts = data);
+  private buildValueChart(rows: StockReport[]): void {
+    const byCategory = new Map<string, number>();
+    rows.forEach(r => byCategory.set(r.categoryName, (byCategory.get(r.categoryName) || 0) + r.stockValue));
+    this.valueChartData = {
+      labels: [...byCategory.keys()],
+      datasets: [{
+        data: [...byCategory.values()],
+        backgroundColor: '#0f766e',
+        borderRadius: 6,
+        label: 'Stock value'
+      }]
+    };
   }
 
   exportStock(): void {
-    this.reportService.exportStockReport().subscribe(blob => {
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'stock-report.xlsx';
-      a.click();
+    this.reportService.exportStockReport().subscribe({
+      next: blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'stock-report.xlsx';
+        a.click();
+        this.notify.success('ส่งออก Excel แล้ว');
+      },
+      error: () => this.notify.error('ส่งออกไม่สำเร็จ')
     });
   }
 }

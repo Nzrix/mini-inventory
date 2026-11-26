@@ -1,112 +1,158 @@
-import { Component } from '@angular/core';
+import { Component, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { BreakpointObserver, Breakpoints } from '@angular/cdk/layout';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
+import { MatListModule } from '@angular/material/list';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { map, shareReplay, take } from 'rxjs/operators';
 import { AuthService } from './services/auth.service';
 import { User } from './models/user.model';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [
+    CommonModule, RouterOutlet, RouterLink, RouterLinkActive,
+    MatToolbarModule, MatSidenavModule, MatListModule, MatIconModule, MatButtonModule
+  ],
   template: `
-    <div class="app-container" *ngIf="currentUser">
-      <nav class="navbar">
-        <div class="nav-brand">
-          <h2>Inventory System</h2>
-        </div>
-        <div class="nav-links">
-          <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Dashboard</a>
-          <a routerLink="/products" routerLinkActive="active">Products</a>
-          <a routerLink="/categories" routerLinkActive="active" *ngIf="isAdmin">Categories</a>
-          <a routerLink="/stock-transactions" routerLinkActive="active">Stock</a>
-          <a routerLink="/reports" routerLinkActive="active">Reports</a>
-        </div>
-        <div class="nav-user">
-          <span>{{ currentUser.fullName }} ({{ currentUser.role }})</span>
-          <button (click)="logout()" class="btn-logout">Logout</button>
-        </div>
-      </nav>
-      <main class="main-content">
-        <router-outlet></router-outlet>
-      </main>
-    </div>
-    <router-outlet *ngIf="!currentUser"></router-outlet>
+    <ng-container *ngIf="currentUser; else guest">
+      <mat-sidenav-container class="shell">
+        <mat-sidenav
+          #drawer
+          class="sidenav"
+          [mode]="(isHandset$ | async) ? 'over' : 'side'"
+          [opened]="!(isHandset$ | async)"
+          fixedInViewport>
+          <div class="brand">
+            <mat-icon>inventory_2</mat-icon>
+            <div>
+              <div class="brand-title">Mini Inventory</div>
+              <div class="brand-sub">ระบบจัดการสต็อก</div>
+            </div>
+          </div>
+          <mat-nav-list>
+            <a mat-list-item routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" (click)="closeIfHandset()">
+              <mat-icon matListItemIcon>dashboard</mat-icon>
+              <span matListItemTitle>Dashboard</span>
+            </a>
+            <a mat-list-item routerLink="/products" routerLinkActive="active" (click)="closeIfHandset()">
+              <mat-icon matListItemIcon>category</mat-icon>
+              <span matListItemTitle>Products</span>
+            </a>
+            <a mat-list-item *ngIf="isAdmin" routerLink="/categories" routerLinkActive="active" (click)="closeIfHandset()">
+              <mat-icon matListItemIcon>folder</mat-icon>
+              <span matListItemTitle>Categories</span>
+            </a>
+            <a mat-list-item routerLink="/stock-transactions" routerLinkActive="active" (click)="closeIfHandset()">
+              <mat-icon matListItemIcon>swap_vert</mat-icon>
+              <span matListItemTitle>Stock</span>
+            </a>
+            <a mat-list-item routerLink="/reports" routerLinkActive="active" (click)="closeIfHandset()">
+              <mat-icon matListItemIcon>assessment</mat-icon>
+              <span matListItemTitle>Reports</span>
+            </a>
+          </mat-nav-list>
+        </mat-sidenav>
+
+        <mat-sidenav-content>
+          <mat-toolbar class="topbar">
+            <button mat-icon-button type="button" (click)="drawer.toggle()" aria-label="Toggle menu">
+              <mat-icon>menu</mat-icon>
+            </button>
+            <span class="toolbar-title">Inventory System</span>
+            <span class="spacer"></span>
+            <span class="user-chip">{{ currentUser.fullName }} · {{ currentUser.role }}</span>
+            <button mat-stroked-button type="button" (click)="logout()">
+              <mat-icon>logout</mat-icon>
+              Logout
+            </button>
+          </mat-toolbar>
+          <main class="content">
+            <router-outlet></router-outlet>
+          </main>
+        </mat-sidenav-content>
+      </mat-sidenav-container>
+    </ng-container>
+
+    <ng-template #guest>
+      <router-outlet></router-outlet>
+    </ng-template>
   `,
   styles: [`
-    .app-container {
-      min-height: 100vh;
-      background: #f5f5f5;
-    }
-    
-    .navbar {
-      background: #667eea;
-      color: white;
-      padding: 1rem 2rem;
-      display: flex;
-      align-items: center;
-      gap: 2rem;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    .nav-brand h2 {
-      margin: 0;
-      font-size: 1.5rem;
-    }
-    
-    .nav-links {
-      display: flex;
-      gap: 1.5rem;
-      flex: 1;
-    }
-    
-    .nav-links a {
-      color: white;
-      text-decoration: none;
-      padding: 0.5rem 1rem;
-      border-radius: 4px;
-      transition: background 0.3s;
-    }
-    
-    .nav-links a:hover, .nav-links a.active {
-      background: rgba(255,255,255,0.2);
-    }
-    
-    .nav-user {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-    
-    .btn-logout {
-      padding: 0.5rem 1rem;
-      background: rgba(255,255,255,0.2);
-      color: white;
+    .shell { min-height: 100vh; background: var(--inv-surface); }
+    .sidenav {
+      width: 260px;
+      background: var(--inv-sidebar);
+      color: var(--inv-sidebar-text);
       border: none;
-      border-radius: 4px;
-      cursor: pointer;
     }
-    
-    .btn-logout:hover {
-      background: rgba(255,255,255,0.3);
+    .brand {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 1.25rem 1rem 1rem;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
     }
-    
-    .main-content {
-      max-width: 1400px;
-      margin: 0 auto;
+    .brand mat-icon { color: #5eead4; }
+    .brand-title { font-weight: 600; font-size: 1.05rem; }
+    .brand-sub { font-size: 0.8rem; color: #94a3b8; }
+    .sidenav a.active {
+      background: rgba(94, 234, 212, 0.12);
+      color: #5eead4;
+    }
+    .sidenav a { color: var(--inv-sidebar-text); }
+    .topbar {
+      background: var(--inv-card);
+      color: var(--inv-ink);
+      border-bottom: 1px solid var(--inv-border);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      gap: 0.5rem;
+    }
+    .toolbar-title { font-weight: 600; }
+    .spacer { flex: 1; }
+    .user-chip {
+      color: var(--inv-muted);
+      font-size: 0.9rem;
+      margin-right: 0.5rem;
+    }
+    .content { min-height: calc(100vh - 64px); }
+    @media (max-width: 600px) {
+      .user-chip { display: none; }
     }
   `]
 })
 export class AppComponent {
+  @ViewChild('drawer') drawer?: MatSidenav;
   currentUser: User | null = null;
   isAdmin = false;
 
+  isHandset$ = this.breakpointObserver.observe(Breakpoints.Handset).pipe(
+    map(result => result.matches),
+    shareReplay({ bufferSize: 1, refCount: true })
+  );
+
   constructor(
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private breakpointObserver: BreakpointObserver
   ) {
     this.authService.currentUser$.subscribe(user => {
       this.currentUser = user;
       this.isAdmin = this.authService.isAdmin();
+    });
+  }
+
+  closeIfHandset(): void {
+    this.isHandset$.pipe(take(1)).subscribe(isHandset => {
+      if (isHandset) {
+        this.drawer?.close();
+      }
     });
   }
 

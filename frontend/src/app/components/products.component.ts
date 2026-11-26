@@ -1,184 +1,180 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MatTableDataSource, MatTableModule } from '@angular/material/table';
+import { MatPaginator, MatPaginatorModule, PageEvent } from '@angular/material/paginator';
+import { MatSort, MatSortModule, Sort } from '@angular/material/sort';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { ProductService } from '../services/product.service';
 import { CategoryService } from '../services/category.service';
+import { AuthService } from '../services/auth.service';
+import { NotifyService } from '../shared/notify.service';
+import { ConfirmDialogComponent } from '../shared/confirm-dialog.component';
+import { ProductDialogComponent } from '../shared/product-dialog.component';
 import { Product } from '../models/product.model';
 import { Category } from '../models/category.model';
-import { AuthService } from '../services/auth.service';
 
 @Component({
   selector: 'app-products',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule, FormsModule, MatTableModule, MatPaginatorModule, MatSortModule,
+    MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, MatIconModule,
+    MatChipsModule, MatDialogModule, MatProgressSpinnerModule, MatTooltipModule
+  ],
   template: `
-    <div class="products-page">
-      <div class="header">
-        <h1>Products / สินค้า</h1>
-        <button *ngIf="isAdmin" (click)="showForm = true; editMode = false; selectedProduct = {}" class="btn-primary">
-          + Add Product
+    <div class="page-shell products-page">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Products</h1>
+          <p class="page-subtitle">สินค้า / จัดการรายการสินค้าในคลัง</p>
+        </div>
+        <button *ngIf="isAdmin" mat-flat-button color="primary" (click)="openForm()">
+          <mat-icon>add</mat-icon>
+          Add Product
         </button>
       </div>
-      
-      <div class="filters">
-        <input type="text" [(ngModel)]="searchTerm" (input)="onSearch()" placeholder="Search products..." class="search-input">
-        <select [(ngModel)]="filterCategoryId" (change)="onSearch()" class="filter-select">
-          <option [value]="null">All Categories</option>
-          <option *ngFor="let cat of categories" [value]="cat.id">{{ cat.name }}</option>
-        </select>
+
+      <div class="table-toolbar">
+        <mat-form-field appearance="outline" class="grow" subscriptSizing="dynamic">
+          <mat-label>ค้นหาสินค้า</mat-label>
+          <input matInput [(ngModel)]="searchTerm" (ngModelChange)="onSearch()" placeholder="Search products...">
+          <mat-icon matSuffix>search</mat-icon>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>หมวดหมู่</mat-label>
+          <mat-select [(ngModel)]="filterCategoryId" (selectionChange)="onSearch()">
+            <mat-option [value]="null">All Categories</mat-option>
+            <mat-option *ngFor="let cat of categories" [value]="cat.id">{{ cat.name }}</mat-option>
+          </mat-select>
+        </mat-form-field>
       </div>
-      
-      <div *ngIf="showForm" class="modal">
-        <div class="modal-content">
-          <h2>{{ editMode ? 'Edit' : 'Add' }} Product</h2>
-          <form (ngSubmit)="onSubmit()">
-            <div class="form-row">
-              <div class="form-group">
-                <label>SKU *</label>
-                <input type="text" [(ngModel)]="selectedProduct.sku" name="sku" required class="form-control">
-              </div>
-              <div class="form-group">
-                <label>Name *</label>
-                <input type="text" [(ngModel)]="selectedProduct.name" name="name" required class="form-control">
-              </div>
-            </div>
-            
-            <div class="form-row">
-              <div class="form-group">
-                <label>Category *</label>
-                <select [(ngModel)]="selectedProduct.categoryId" name="categoryId" required class="form-control">
-                  <option *ngFor="let cat of categories" [value]="cat.id">{{ cat.name }}</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Unit *</label>
-                <input type="text" [(ngModel)]="selectedProduct.unit" name="unit" required class="form-control">
-              </div>
-            </div>
-            
-            <div class="form-row">
-              <div class="form-group">
-                <label>Cost Price *</label>
-                <input type="number" [(ngModel)]="selectedProduct.costPrice" name="costPrice" required class="form-control">
-              </div>
-              <div class="form-group">
-                <label>Selling Price *</label>
-                <input type="number" [(ngModel)]="selectedProduct.sellingPrice" name="sellingPrice" required class="form-control">
-              </div>
-              <div class="form-group">
-                <label>Min Stock *</label>
-                <input type="number" [(ngModel)]="selectedProduct.minimumStock" name="minStock" required class="form-control">
-              </div>
-            </div>
-            
-            <div class="form-actions">
-              <button type="button" (click)="showForm = false" class="btn-secondary">Cancel</button>
-              <button type="submit" class="btn-primary">Save</button>
-            </div>
-          </form>
+
+      <div class="panel">
+        <div class="loading-state" *ngIf="loading">
+          <mat-spinner diameter="36"></mat-spinner>
         </div>
-      </div>
-      
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>SKU</th>
-            <th>Name</th>
-            <th>Category</th>
-            <th>Stock</th>
-            <th>Unit</th>
-            <th>Cost</th>
-            <th>Price</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let product of products" [class.low-stock]="product.isLowStock">
-            <td>{{ product.sku }}</td>
-            <td>{{ product.name }}</td>
-            <td>{{ product.categoryName }}</td>
-            <td>
-              <span [class.warning]="product.isLowStock">{{ product.currentStock }}</span>
-              <span *ngIf="product.isLowStock" class="badge-warning">Low</span>
+
+        <div class="empty-state" *ngIf="!loading && dataSource.data.length === 0">
+          <mat-icon>inventory_2</mat-icon>
+          <div>ไม่พบสินค้า</div>
+        </div>
+
+        <table mat-table [dataSource]="dataSource" matSort (matSortChange)="onSort($event)" *ngIf="!loading && dataSource.data.length" class="full-width">
+          <ng-container matColumnDef="sku">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>SKU</th>
+            <td mat-cell *matCellDef="let row">{{ row.sku }}</td>
+          </ng-container>
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Name</th>
+            <td mat-cell *matCellDef="let row">{{ row.name }}</td>
+          </ng-container>
+          <ng-container matColumnDef="categoryName">
+            <th mat-header-cell *matHeaderCellDef>Category</th>
+            <td mat-cell *matCellDef="let row">{{ row.categoryName }}</td>
+          </ng-container>
+          <ng-container matColumnDef="currentStock">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Stock</th>
+            <td mat-cell *matCellDef="let row">
+              <mat-chip [class]="row.isLowStock ? 'stock-chip-low' : 'stock-chip-ok'">
+                {{ row.currentStock }} {{ row.unit }}
+                <span *ngIf="row.isLowStock"> · Low</span>
+              </mat-chip>
             </td>
-            <td>{{ product.unit }}</td>
-            <td>฿{{ product.costPrice }}</td>
-            <td>฿{{ product.sellingPrice }}</td>
-            <td>
-              <button *ngIf="isAdmin" (click)="editProduct(product)" class="btn-sm">Edit</button>
-              <button *ngIf="isAdmin" (click)="deleteProduct(product.id!)" class="btn-sm btn-danger">Delete</button>
+          </ng-container>
+          <ng-container matColumnDef="costPrice">
+            <th mat-header-cell *matHeaderCellDef>Cost</th>
+            <td mat-cell *matCellDef="let row">฿{{ row.costPrice | number:'1.0-2' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="sellingPrice">
+            <th mat-header-cell *matHeaderCellDef>Price</th>
+            <td mat-cell *matCellDef="let row">฿{{ row.sellingPrice | number:'1.0-2' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let row">
+              <ng-container *ngIf="isAdmin">
+                <button mat-icon-button color="primary" matTooltip="Edit" (click)="openForm(row)"><mat-icon>edit</mat-icon></button>
+                <button mat-icon-button color="warn" matTooltip="Delete" (click)="deleteProduct(row)"><mat-icon>delete</mat-icon></button>
+              </ng-container>
             </td>
-          </tr>
-        </tbody>
-      </table>
-      
-      <div class="pagination" *ngIf="totalPages > 1">
-        <button (click)="changePage(currentPage - 1)" [disabled]="currentPage === 0" class="btn-sm">Previous</button>
-        <span>Page {{ currentPage + 1 }} of {{ totalPages }}</span>
-        <button (click)="changePage(currentPage + 1)" [disabled]="currentPage >= totalPages - 1" class="btn-sm">Next</button>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;" [class.low-stock-row]="row.isLowStock"></tr>
+        </table>
+
+        <mat-paginator
+          [length]="totalElements"
+          [pageIndex]="currentPage"
+          [pageSize]="pageSize"
+          [pageSizeOptions]="[5, 10, 25]"
+          (page)="onPage($event)"
+          showFirstLastButtons>
+        </mat-paginator>
       </div>
     </div>
-  `,
-  styles: [`
-    .products-page { padding: 2rem; }
-    .header { display: flex; justify-content: space-between; margin-bottom: 2rem; }
-    .filters { display: flex; gap: 1rem; margin-bottom: 1rem; }
-    .search-input { flex: 1; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; }
-    .filter-select { padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; }
-    .data-table { width: 100%; border-collapse: collapse; background: white; }
-    .data-table th, .data-table td { padding: 1rem; text-align: left; border-bottom: 1px solid #eee; }
-    .data-table th { background: #f8f9fa; font-weight: 600; }
-    .data-table tr.low-stock { background: #fff3cd; }
-    .warning { color: #f59e0b; font-weight: bold; }
-    .badge-warning { background: #f59e0b; color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; margin-left: 0.5rem; }
-    .btn-primary { padding: 0.75rem 1.5rem; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    .btn-secondary { padding: 0.75rem 1.5rem; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    .btn-sm { padding: 0.375rem 0.75rem; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 0.5rem; }
-    .btn-danger { background: #dc3545; }
-    .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-    .modal-content { background: white; padding: 2rem; border-radius: 8px; max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto; }
-    .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
-    .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
-    .form-control { width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; }
-    .form-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem; }
-    .pagination { display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 1rem; }
-  `]
+  `
 })
 export class ProductsComponent implements OnInit {
-  products: Product[] = [];
+  displayedColumns = ['sku', 'name', 'categoryName', 'currentStock', 'costPrice', 'sellingPrice', 'actions'];
+  dataSource = new MatTableDataSource<Product>([]);
   categories: Category[] = [];
   searchTerm = '';
   filterCategoryId: number | null = null;
   currentPage = 0;
   pageSize = 10;
-  totalPages = 0;
-  showForm = false;
-  editMode = false;
-  selectedProduct: any = {};
+  totalElements = 0;
+  sortBy = 'id';
+  sortDir = 'DESC';
+  loading = true;
   isAdmin = false;
+
+  @ViewChild(MatPaginator) paginator?: MatPaginator;
+  @ViewChild(MatSort) sort?: MatSort;
 
   constructor(
     private productService: ProductService,
     private categoryService: CategoryService,
-    private authService: AuthService
+    private authService: AuthService,
+    private dialog: MatDialog,
+    private notify: NotifyService
   ) {}
 
   ngOnInit(): void {
     this.isAdmin = this.authService.isAdmin();
-    this.loadCategories();
+    this.categoryService.getAllCategories().subscribe(cats => this.categories = cats);
     this.loadProducts();
   }
 
-  loadCategories(): void {
-    this.categoryService.getAllCategories().subscribe(cats => this.categories = cats);
-  }
-
   loadProducts(): void {
-    this.productService.searchProducts(this.searchTerm || undefined, this.filterCategoryId || undefined, this.currentPage, this.pageSize)
-      .subscribe(page => {
-        this.products = page.content;
-        this.totalPages = page.totalPages;
-      });
+    this.loading = true;
+    this.productService.searchProducts(
+      this.searchTerm || undefined,
+      this.filterCategoryId || undefined,
+      this.currentPage,
+      this.pageSize,
+      this.sortBy,
+      this.sortDir
+    ).subscribe({
+      next: page => {
+        this.dataSource.data = page.content;
+        this.totalElements = page.totalElements;
+        this.loading = false;
+      },
+      error: () => {
+        this.loading = false;
+        this.notify.error('โหลดสินค้าไม่สำเร็จ');
+      }
+    });
   }
 
   onSearch(): void {
@@ -186,31 +182,61 @@ export class ProductsComponent implements OnInit {
     this.loadProducts();
   }
 
-  changePage(page: number): void {
-    this.currentPage = page;
+  onPage(event: PageEvent): void {
+    this.currentPage = event.pageIndex;
+    this.pageSize = event.pageSize;
     this.loadProducts();
   }
 
-  editProduct(product: Product): void {
-    this.selectedProduct = { ...product };
-    this.editMode = true;
-    this.showForm = true;
-  }
-
-  deleteProduct(id: number): void {
-    if (confirm('Are you sure?')) {
-      this.productService.deleteProduct(id).subscribe(() => this.loadProducts());
+  onSort(sort: Sort): void {
+    if (!sort.active || !sort.direction) {
+      this.sortBy = 'id';
+      this.sortDir = 'DESC';
+    } else {
+      this.sortBy = sort.active;
+      this.sortDir = sort.direction.toUpperCase();
     }
+    this.loadProducts();
   }
 
-  onSubmit(): void {
-    const obs = this.editMode 
-      ? this.productService.updateProduct(this.selectedProduct.id!, this.selectedProduct)
-      : this.productService.createProduct(this.selectedProduct);
-    
-    obs.subscribe(() => {
-      this.showForm = false;
-      this.loadProducts();
+  openForm(product?: Product): void {
+    const ref = this.dialog.open(ProductDialogComponent, {
+      data: { product, categories: this.categories },
+      width: '640px'
+    });
+    ref.afterClosed().subscribe(result => {
+      if (!result) return;
+      const req = product?.id
+        ? this.productService.updateProduct(product.id, result)
+        : this.productService.createProduct(result);
+      req.subscribe({
+        next: () => {
+          this.notify.success(product?.id ? 'อัปเดตสินค้าแล้ว' : 'เพิ่มสินค้าแล้ว');
+          this.loadProducts();
+        },
+        error: err => this.notify.error(err.error?.message || 'บันทึกไม่สำเร็จ')
+      });
+    });
+  }
+
+  deleteProduct(product: Product): void {
+    const ref = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: 'ลบสินค้า',
+        message: `ต้องการลบ "${product.name}" หรือไม่?`,
+        confirmText: 'ลบ',
+        warn: true
+      }
+    });
+    ref.afterClosed().subscribe(ok => {
+      if (!ok || !product.id) return;
+      this.productService.deleteProduct(product.id).subscribe({
+        next: () => {
+          this.notify.success('ลบสินค้าแล้ว');
+          this.loadProducts();
+        },
+        error: err => this.notify.error(err.error?.message || 'ลบไม่สำเร็จ')
+      });
     });
   }
 }

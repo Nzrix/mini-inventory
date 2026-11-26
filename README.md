@@ -12,7 +12,7 @@
 A full-stack inventory management system built with Angular, Spring Boot, and MySQL. This application is designed for small shops to manage products, categories, stock transactions, and generate reports.
 
 **Tech Stack:**
-- **Frontend:** Angular 17 (Standalone Components)
+- **Frontend:** Angular 17 (Standalone Components), Angular Material, ng2-charts (Chart.js)
 - **Backend:** Spring Boot 3 with Java 17
 - **Database:** MySQL 8
 - **Authentication:** JWT
@@ -280,7 +280,7 @@ npm test
 ระบบจัดการสต็อกสินค้าแบบครบวงจร สร้างด้วย Angular, Spring Boot และ MySQL เหมาะสำหรับร้านค้าขนาดเล็กในการจัดการสินค้า หมวดหมู่ การเคลื่อนไหวสต็อก และสร้างรายงาน
 
 **เทคโนโลยี:**
-- **Frontend:** Angular 17 (Standalone Components)
+- **Frontend:** Angular 17 (Standalone Components), Angular Material, ng2-charts (Chart.js)
 - **Backend:** Spring Boot 3 with Java 17
 - **Database:** MySQL 8
 - **Authentication:** JWT

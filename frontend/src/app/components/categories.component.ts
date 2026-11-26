@@ -1,115 +1,129 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { MatTableDataSource, MatTableModule } from '@angular/material/table';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { CategoryService } from '../services/category.service';
+import { NotifyService } from '../shared/notify.service';
+import { ConfirmDialogComponent } from '../shared/confirm-dialog.component';
+import { CategoryDialogComponent } from '../shared/category-dialog.component';
 import { Category } from '../models/category.model';
 
 @Component({
   selector: 'app-categories',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule, MatTableModule, MatButtonModule, MatIconModule,
+    MatDialogModule, MatProgressSpinnerModule, MatTooltipModule
+  ],
   template: `
-    <div class="page">
-      <div class="header">
-        <h1>Categories / หมวดหมู่สินค้า</h1>
-        <button (click)="showForm = true; editMode = false; selectedCategory = {}" class="btn-primary">+ Add Category</button>
-      </div>
-      
-      <div *ngIf="showForm" class="modal">
-        <div class="modal-content">
-          <h2>{{ editMode ? 'Edit' : 'Add' }} Category</h2>
-          <form (ngSubmit)="onSubmit()">
-            <div class="form-group">
-              <label>Name *</label>
-              <input type="text" [(ngModel)]="selectedCategory.name" name="name" required class="form-control">
-            </div>
-            <div class="form-group">
-              <label>Description</label>
-              <textarea [(ngModel)]="selectedCategory.description" name="description" class="form-control" rows="3"></textarea>
-            </div>
-            <div class="form-actions">
-              <button type="button" (click)="showForm = false" class="btn-secondary">Cancel</button>
-              <button type="submit" class="btn-primary">Save</button>
-            </div>
-          </form>
+    <div class="page-shell">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Categories</h1>
+          <p class="page-subtitle">หมวดหมู่สินค้า (Admin only)</p>
         </div>
+        <button mat-flat-button color="primary" (click)="openForm()">
+          <mat-icon>add</mat-icon>
+          Add Category
+        </button>
       </div>
-      
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Description</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let category of categories">
-            <td>{{ category.name }}</td>
-            <td>{{ category.description }}</td>
-            <td>
-              <button (click)="edit(category)" class="btn-sm">Edit</button>
-              <button (click)="delete(category.id!)" class="btn-sm btn-danger">Delete</button>
+
+      <div class="panel">
+        <div class="loading-state" *ngIf="loading">
+          <mat-spinner diameter="36"></mat-spinner>
+        </div>
+        <div class="empty-state" *ngIf="!loading && dataSource.data.length === 0">
+          <mat-icon>folder_off</mat-icon>
+          <div>ยังไม่มีหมวดหมู่</div>
+        </div>
+        <table mat-table [dataSource]="dataSource" class="full-width" *ngIf="!loading && dataSource.data.length">
+          <ng-container matColumnDef="name">
+            <th mat-header-cell *matHeaderCellDef>Name</th>
+            <td mat-cell *matCellDef="let row">{{ row.name }}</td>
+          </ng-container>
+          <ng-container matColumnDef="description">
+            <th mat-header-cell *matHeaderCellDef>Description</th>
+            <td mat-cell *matCellDef="let row">{{ row.description || '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let row">
+              <button mat-icon-button color="primary" matTooltip="Edit" (click)="openForm(row)"><mat-icon>edit</mat-icon></button>
+              <button mat-icon-button color="warn" matTooltip="Delete" (click)="delete(row)"><mat-icon>delete</mat-icon></button>
             </td>
-          </tr>
-        </tbody>
-      </table>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+        </table>
+      </div>
     </div>
-  `,
-  styles: [`
-    .page { padding: 2rem; }
-    .header { display: flex; justify-content: space-between; margin-bottom: 2rem; }
-    .data-table { width: 100%; border-collapse: collapse; background: white; }
-    .data-table th, .data-table td { padding: 1rem; text-align: left; border-bottom: 1px solid #eee; }
-    .data-table th { background: #f8f9fa; font-weight: 600; }
-    .btn-primary { padding: 0.75rem 1.5rem; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    .btn-secondary { padding: 0.75rem 1.5rem; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    .btn-sm { padding: 0.375rem 0.75rem; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 0.5rem; }
-    .btn-danger { background: #dc3545; }
-    .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-    .modal-content { background: white; padding: 2rem; border-radius: 8px; max-width: 500px; width: 100%; }
-    .form-group { margin-bottom: 1rem; }
-    .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
-    .form-control { width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; }
-    .form-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem; }
-  `]
+  `
 })
 export class CategoriesComponent implements OnInit {
-  categories: Category[] = [];
-  showForm = false;
-  editMode = false;
-  selectedCategory: any = {};
+  displayedColumns = ['name', 'description', 'actions'];
+  dataSource = new MatTableDataSource<Category>([]);
+  loading = true;
 
-  constructor(private categoryService: CategoryService) {}
+  constructor(
+    private categoryService: CategoryService,
+    private dialog: MatDialog,
+    private notify: NotifyService
+  ) {}
 
   ngOnInit(): void {
     this.load();
   }
 
   load(): void {
-    this.categoryService.getAllCategories().subscribe(cats => this.categories = cats);
+    this.loading = true;
+    this.categoryService.getAllCategories().subscribe({
+      next: cats => {
+        this.dataSource.data = cats;
+        this.loading = false;
+      },
+      error: () => { this.loading = false; this.notify.error('โหลดหมวดหมู่ไม่สำเร็จ'); }
+    });
   }
 
-  edit(category: Category): void {
-    this.selectedCategory = { ...category };
-    this.editMode = true;
-    this.showForm = true;
+  openForm(category?: Category): void {
+    const ref = this.dialog.open(CategoryDialogComponent, {
+      data: category || null,
+      width: '480px'
+    });
+    ref.afterClosed().subscribe(result => {
+      if (!result) return;
+      const req = category?.id
+        ? this.categoryService.updateCategory(category.id, result)
+        : this.categoryService.createCategory(result);
+      req.subscribe({
+        next: () => {
+          this.notify.success(category?.id ? 'อัปเดตหมวดหมู่แล้ว' : 'เพิ่มหมวดหมู่แล้ว');
+          this.load();
+        },
+        error: err => this.notify.error(err.error?.message || 'บันทึกไม่สำเร็จ')
+      });
+    });
   }
 
-  delete(id: number): void {
-    if (confirm('Are you sure?')) {
-      this.categoryService.deleteCategory(id).subscribe(() => this.load());
-    }
-  }
-
-  onSubmit(): void {
-    const obs = this.editMode 
-      ? this.categoryService.updateCategory(this.selectedCategory.id!, this.selectedCategory)
-      : this.categoryService.createCategory(this.selectedCategory);
-    
-    obs.subscribe(() => {
-      this.showForm = false;
-      this.load();
+  delete(category: Category): void {
+    const ref = this.dialog.open(ConfirmDialogComponent, {
+      data: {
+        title: 'ลบหมวดหมู่',
+        message: `ต้องการลบ "${category.name}" หรือไม่?`,
+        confirmText: 'ลบ',
+        warn: true
+      }
+    });
+    ref.afterClosed().subscribe(ok => {
+      if (!ok || !category.id) return;
+      this.categoryService.deleteCategory(category.id).subscribe({
+        next: () => { this.notify.success('ลบหมวดหมู่แล้ว'); this.load(); },
+        error: err => this.notify.error(err.error?.message || 'ลบไม่สำเร็จ')
+      });
     });
   }
 }
