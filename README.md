@@ -244,7 +244,13 @@ npm test
 
 ### Screenshots
 
-Screenshots are available in the [docs/](./docs/) directory:
+![Login Page](docs/screenshots/01-login-page.png)
+*Login page with demo account support*
+
+![Admin Credentials](docs/screenshots/02-admin-credentials.png)
+*Admin user authentication*
+
+For complete runtime verification results with all feature tests, see [RUNTIME_VERIFICATION.md](RUNTIME_VERIFICATION.md).
 - Dashboard view
 - Product management
 - Stock transactions
